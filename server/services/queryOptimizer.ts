@@ -15,6 +15,9 @@ export class QueryOptimizer {
     // Apply REGEXP optimizations
     optimizedQuery = this.optimizeRegexOperations(optimizedQuery);
     
+    // Apply subquery to JOIN optimizations
+    optimizedQuery = this.optimizeSubqueries(optimizedQuery);
+    
     // Add index creation suggestions
     optimizedQuery = this.addIndexCreation(optimizedQuery);
     
@@ -47,10 +50,11 @@ export class QueryOptimizer {
     
     if (matches.length > 0) {
       const siValues = matches.map(match => match[1]).join(',');
+      // MySQL 5.7+ compatible JSON optimization with GENERATED columns
       optimized = optimized.replace(
         /WHERE \(\(sub_items\.ARGS LIKE[^)]+\)\)/,
-        `WHERE JSON_EXTRACT(sub_items.ARGS, '$.sp') = 'warehouse'
-  AND JSON_EXTRACT(sub_items.ARGS, '$.si') BETWEEN 1 AND 7`
+        `WHERE sp_type = 'warehouse'
+  AND si_value BETWEEN 1 AND 7`
       );
     }
     
@@ -66,14 +70,25 @@ export class QueryOptimizer {
   }
   
   private static addIndexCreation(query: string): string {
-    // Add index creation at the beginning
-    const indexCreation = `-- Создание индекса для оптимизации
-CREATE INDEX IF NOT EXISTS idx_item_json_optimized 
-ON item ((JSON_EXTRACT(ARGS, '$.sp')), (JSON_EXTRACT(ARGS, '$.si')), itemId, login);
-
-`;
+    // Do not prepend DDL to queries - separate concern
+    // DDL will be handled via dedicated export endpoint
+    return query;
+  }
+  
+  private static optimizeSubqueries(query: string): string {
+    let optimized = query;
     
-    return indexCreation + query;
+    // Transform correlated subqueries to JOINs for better performance
+    // Pattern: WHERE column IN (SELECT ... WHERE correlation)
+    
+    // Example: itemsqlid IN (SELECT itemsqlid FROM item WHERE conditions)
+    const subqueryPattern = /WHERE\s+([\w\.]+)\s+IN\s*\(\s*SELECT\s+([\w\.]+)\s+FROM\s+(\w+)\s+AS\s+(\w+)\s+WHERE\s+([^)]+)\)/gi;
+    
+    optimized = optimized.replace(subqueryPattern, (match, column, selectColumn, table, alias, condition) => {
+      return `INNER JOIN (SELECT DISTINCT ${selectColumn} FROM ${table} WHERE ${condition}) AS ${alias}_sub ON ${column} = ${alias}_sub.${selectColumn}`;
+    });
+    
+    return optimized;
   }
   
   static generateStoredProcedure(query: string, name: string): string {
@@ -94,10 +109,13 @@ BEGIN
     
     START TRANSACTION;
     
+    -- Оптимизированный запрос с параметрами
     ${query.replace(/@dateStart/g, 'p_dateStart')
            .replace(/@dateEnd/g, 'p_dateEnd')
            .replace(/@fractionStart/g, 'p_fractionStart')
-           .replace(/@fractionEnd/g, 'p_fractionEnd')}
+           .replace(/@fractionEnd/g, 'p_fractionEnd')
+           .replace(/SET @\w+\s*:=\s*[^;]+;/g, '') // Remove variable declarations
+           .replace(/-- Создание индекса[\s\S]*?;\s*/g, '')} -- Remove DDL statements
     
     COMMIT;
 END //

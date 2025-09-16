@@ -81,15 +81,15 @@ export class SqlAnalyzer {
       });
     }
 
-    // Recommend JSON functional index
+    // Recommend GENERATED STORED column + index for MySQL 5.7+ compatibility
     if (query.includes("ARGS") && query.includes("sp\":\"warehouse\"")) {
       recommendations.push({
         tableName: "item",
-        columns: ["JSON_EXTRACT(ARGS, '$.sp')"],
-        type: "Функциональный индекс" as const,
-        ddl: "CREATE INDEX idx_item_json_sp ON item ((JSON_EXTRACT(ARGS, '$.sp')));",
-        impact: "Функциональный индекс для JSON поля",
-        priority: "Средний приоритет" as const,
+        columns: ["sp_type", "si_value"],
+        type: "Составной индекс" as const,
+        ddl: "-- MySQL 5.7+ совместимая реализация\nALTER TABLE item \n  ADD COLUMN sp_type VARCHAR(20) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(ARGS, '$.sp'))) STORED,\n  ADD COLUMN si_value INT GENERATED ALWAYS AS (CAST(JSON_UNQUOTE(JSON_EXTRACT(ARGS, '$.si')) AS UNSIGNED)) STORED;\n\nCREATE INDEX idx_item_sp_si ON item (sp_type, si_value, itemId, login);",
+        impact: "GENERATED STORED столбцы для JSON поля (MySQL 5.7+ совместимо)",
+        priority: "Высокий приоритет" as const,
       });
     }
 
@@ -117,7 +117,7 @@ export class SqlAnalyzer {
         title: "Замена LIKE на JSON функции",
         description: "Заменить множественные LIKE операции на JSON_EXTRACT для лучшей производительности",
         before: `sub_items.ARGS LIKE '%"sp":"warehouse","si":1,%'`,
-        after: `JSON_EXTRACT(sub_items.ARGS, '$.sp') = 'warehouse' AND JSON_EXTRACT(sub_items.ARGS, '$.si') IN (1,2,3,4,5,6,7)`,
+        after: `sp_type = 'warehouse' AND si_value BETWEEN 1 AND 7`,
         impact: "Улучшение производительности на 60-80%",
       });
     }
