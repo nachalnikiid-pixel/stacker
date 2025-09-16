@@ -226,7 +226,7 @@ class PunishmentProcessor:
         return date_search.group(1) if date_search else ""
 
     def calculate_escalation(self, ajail_minutes: int, ban_days: int, hardban_days: int, 
-                           punishment_reasons: Dict[str, int]) -> tuple[str, int]:
+                           punishment_reasons: Dict[str, int]) -> tuple[Optional[str], Optional[int]]:
         """Рассчитывает эскалацию наказания с учетом настроек"""
         
         # Если автоэскалация отключена, возвращаем исходное наказание
@@ -238,7 +238,7 @@ class PunishmentProcessor:
             elif ajail_minutes > 0:
                 return "/ajail", ajail_minutes
             else:
-                return None, 0
+                return None, None
         
         total_minutes = ajail_minutes
         reason_count = len(punishment_reasons)
@@ -294,11 +294,11 @@ class PunishmentProcessor:
                 
         elif (reason_count == 1 and "1.2.2 ПГО" in punishment_reasons and 
               self.config.max_ajail_duration < total_minutes <= self.config.max_warn_duration):
-            return "/warn", None
+            return "/warn", 0
             
         elif (different_reasons and 
               self.config.max_warn_duration < total_minutes <= self.config.max_multi_warn_duration):
-            return "/warn", None
+            return "/warn", 0
             
         elif (total_minutes > self.config.max_multi_warn_duration or 
               (reason_count == 1 and total_minutes > self.config.max_ajail_duration)):
@@ -315,7 +315,7 @@ class PunishmentProcessor:
         elif total_minutes > 0:
             return "/ajail", total_minutes
         else:
-            return None, 0
+            return None, None
         
         # Применяем ПГО лимиты если включены
         if self.config.enable_pgo_limits and len(punishment_reasons) == 1:
