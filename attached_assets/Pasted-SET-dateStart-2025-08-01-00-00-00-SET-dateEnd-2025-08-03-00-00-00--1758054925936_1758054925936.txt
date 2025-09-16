@@ -1,0 +1,74 @@
+SET @dateStart := '2025-08-01 00:00:00';
+SET @dateEnd := '2025-08-03 00:00:00';
+
+-- Общая временная таблица для хранения itemsqlid из подзапроса
+CREATE TEMPORARY TABLE temp_itemsqlid AS
+SELECT DISTINCT itemsqlid
+FROM item AS sub_items
+WHERE ((sub_items.ARGS LIKE '%"sp":"warehouse","si":1,%') OR
+       (sub_items.ARGS LIKE '%"sp":"warehouse","si":2,%') OR
+       (sub_items.ARGS LIKE '%"sp":"warehouse","si":3,%') OR
+       (sub_items.ARGS LIKE '%"sp":"warehouse","si":4,%') OR
+       (sub_items.ARGS LIKE '%"sp":"warehouse","si":5,%') OR
+       (sub_items.ARGS LIKE '%"sp":"warehouse","si":6,%') OR
+       (sub_items.ARGS LIKE '%"sp":"warehouse","si":7,%'))
+  AND sub_items.itemId IN (279, 328, 333, 337, 281, 329, 332, 451, 630, 506, 555, 557, 558, 563, 564, 572, 573, 627, 628, 494)
+  AND ((login NOT LIKE '%PR %') OR (login NOT LIKE '%pr %'));
+
+-- Индекс для временной таблицы
+CREATE INDEX idx_temp_itemsqlid ON temp_itemsqlid (itemsqlid);
+
+-- Слито (optimized)
+SELECT i.login, i.accountid, i.fraction, i.itemsqlid, i.itemID, i.COMMENT, i.args, i.DATE, i.SERIAL
+FROM item i
+INNER JOIN temp_itemsqlid t ON i.itemsqlid = t.itemsqlid
+WHERE ((i.ARGS LIKE '%"tp":"trunk",%') OR (i.ARGS LIKE '%"tp":"house",%') OR (i.ARGS LIKE '%"tp":"apartment%",%') OR (i.ARGS LIKE '%"tp":"marketplace",%') OR (i.ARGS LIKE '%"tp":"warehouse_mansion",%') OR (i.ARGS LIKE '%"tp":"orgCompany",%') OR (i.ARGS LIKE '%"tp":"office_gunlocker",%') OR (i.ARGS LIKE '%"tp":"family_warehouse",%') OR (i.ARGS LIKE '%"tp":"glove",%') OR (i.ARGS LIKE '%"tp":"garbage",%'))
+  AND i.ARGS NOT LIKE '%"sp":"marketplace"%'
+  AND (i.DATE > @dateStart AND i.DATE < @dateEnd)
+GROUP BY i.itemsqlid
+ORDER BY i.accountid, i.DATE DESC;
+
+
+-- Изъято (optimized)
+SELECT i.itemsqlid, i.fraction, i.login, i.accountid, i.itemID, i.COMMENT, i.args, i.DATE, i.SERIAL
+FROM item i
+INNER JOIN temp_itemsqlid t ON i.itemsqlid = t.itemsqlid
+WHERE (i.COMMENT LIKE ('seizedBy') OR i.COMMENT LIKE ('removeDemorgan') OR i.COMMENT LIKE ('delitem admin #37566') OR i.COMMENT LIKE ('fullUsed') OR i.COMMENT LIKE ('removeGunban'))
+  AND (i.DATE > @dateStart AND i.DATE < @dateEnd)
+GROUP BY i.itemsqlid
+ORDER BY i.accountid, i.DATE DESC;
+
+-- Трейды (часть 1 - улучшенный подзапрос)
+CREATE TEMPORARY TABLE temp_trades AS
+SELECT i.itemsqlid,
+       COALESCE((SELECT CASE
+                              WHEN f.TYPE IN ('logs.fraction_log.kickedByAdmin', 'logs.fraction_log.uninviteFrom', 'logs.fraction_log.leftLeader', 'logs.fraction_log.kickedByCriminalRecord') THEN 0
+                              WHEN f.TYPE IN ('logs.fraction_log.rankIncrease', 'logs.fraction_log.rankDecrease', 'logs.fraction_log.setLeader', 'logs.fraction_log.inviteTo') THEN f.fractionid
+                          END
+                  FROM frac f
+                  WHERE f.accountid = i.accountid
+                    AND f.DATE <= i.date
+                    AND f.TYPE IN ('logs.fraction_log.rankIncrease', 'logs.fraction_log.rankDecrease', 'logs.fraction_log.kickedByAdmin', 'logs.fraction_log.uninviteFrom', 'logs.fraction_log.leftLeader', 'logs.fraction_log.kickedByCriminalRecord', 'logs.fraction_log.setLeader', 'logs.fraction_log.inviteTo')
+                  ORDER BY f.DATE DESC
+                  LIMIT 1), 0) AS fraction
+FROM item i
+WHERE i.COMMENT = 'transferItem'
+  AND (i.DATE > @dateStart AND i.DATE < @dateEnd);
+
+CREATE INDEX idx_temp_trades_itemsqlid ON temp_trades (itemsqlid);
+-- Трейды (часть 2 - основной запрос)
+SELECT i.login, i.accountid, t.fraction, i.family, i.itemsqlid, i.itemid, i.COMMENT, i.args, i.DATE, i.SERIAL
+FROM item i
+INNER JOIN temp_itemsqlid ti ON i.itemsqlid = ti.itemsqlid
+INNER JOIN temp_trades t ON i.itemsqlid = t.itemsqlid
+WHERE t.fraction NOT IN (1, 2, 3, 4, 5, 6, 7)
+GROUP BY i.itemsqlid
+ORDER BY i.date DESC;
+
+-- Очистка временных таблиц
+DROP TEMPORARY TABLE IF EXISTS temp_itemsqlid;
+DROP TEMPORARY TABLE IF EXISTS temp_trades;
+
+-- Фракции (дроп)
+SET @fractionStart := '0';
+SET @fractionEnd := '8';

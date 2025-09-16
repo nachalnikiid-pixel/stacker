@@ -1,0 +1,53 @@
+1. item - Field;Type;Null;Key;Default;Extra
+transactionId;int(15);YES;MUL;\N;
+source;varchar(50);YES;MUL;\N;
+serial;text;YES;MUL;\N;
+member;tinyint(4);YES;MUL;\N;
+login;varchar(50);YES;MUL;\N;
+leader;tinyint(4);YES;MUL;\N;
+itemSqlId;int(11);YES;MUL;\N;
+itemId;smallint(6);YES;MUL;\N;
+fraction;tinyint(4);YES;MUL;\N;
+family;smallint(6);YES;MUL;\N;
+DATE;datetime;YES;MUL;\N;
+comment;varchar(50);YES;MUL;\N;
+args;longtext;YES;MUL;\N;
+amount;varchar(15);YES;MUL;\N;
+accountid;mediumint(9);YES;MUL;\N;
+
+frac - Field;Type;Null;Key;Default;Extra
+accountid;mediumint(9);YES;MUL;\N;
+actionBy;mediumint(9);YES;MUL;\N;
+TYPE;varchar(50);YES;MUL;\N;
+fractionid;int(2);YES;MUL;\N;
+reason;varchar(70);YES;MUL;\N;
+args;varchar(50);YES;MUL;\N;
+DATE;datetime;YES;MUL;\N;
+
+
+2. 
+item - Table;Non_unique;Key_name;Seq_in_index;Column_name;Collation;Cardinality;Sub_part;Packed;Null;Index_type;Comment;Index_comment
+item;1;fraction;1;fraction;A;9;\N;\N;YES;BTREE;;
+item;1;itemSqlId;1;itemSqlId;A;3201909;\N;\N;YES;BTREE;;
+item;1;accountid;1;accountid;A;31695;\N;\N;YES;BTREE;;
+item;1;itemId;1;itemId;A;9;\N;\N;YES;BTREE;;
+item;1;comment;1;comment;A;9;\N;\N;YES;BTREE;;
+item;1;amount;1;amount;A;9;\N;\N;YES;BTREE;;
+item;1;DATE;1;DATE;A;6824850;\N;\N;YES;BTREE;;
+item;1;member;1;member;A;9;\N;\N;YES;BTREE;;
+item;1;family;1;family;A;9;\N;\N;YES;BTREE;;
+item;1;leader;1;leader;A;9;\N;\N;YES;BTREE;;
+item;1;source;1;source;A;9;\N;\N;YES;BTREE;;
+item;1;transactionId;1;transactionId;A;1499781;\N;\N;YES;BTREE;;
+item;1;args;1;args;A;4708449;255;\N;YES;BTREE;;
+item;1;login;1;login;A;44909;\N;\N;YES;BTREE;;
+item;1;serial;1;serial;A;880956;255;\N;YES;BTREE;;
+
+frac - Table;Non_unique;Key_name;Seq_in_index;Column_name;Collation;Cardinality;Sub_part;Packed;Null;Index_type;Comment;Index_comment
+frac;1;accountid;1;accountid;A;4163;\N;\N;YES;BTREE;;
+frac;1;actionBy;1;actionBy;A;2010;\N;\N;YES;BTREE;;
+frac;1;TYPE;1;TYPE;A;32;\N;\N;YES;BTREE;;
+frac;1;reason;1;reason;A;3850;\N;\N;YES;BTREE;;
+frac;1;DATE;1;DATE;A;63793;\N;\N;YES;BTREE;;
+frac;1;args;1;args;A;5304;\N;\N;YES;BTREE;;
+frac;1;fractionid;1;fractionid;A;14;\N;\N;YES;BTREE;;

@@ -1,0 +1,153 @@
+1. item - Field;Type;Null;Key;Default;Extra
+transactionId;int(15);YES;MUL;\N;
+source;varchar(50);YES;MUL;\N;
+serial;text;YES;MUL;\N;
+member;tinyint(4);YES;MUL;\N;
+login;varchar(50);YES;MUL;\N;
+leader;tinyint(4);YES;MUL;\N;
+itemSqlId;int(11);YES;MUL;\N;
+itemId;smallint(6);YES;MUL;\N;
+fraction;tinyint(4);YES;MUL;\N;
+family;smallint(6);YES;MUL;\N;
+DATE;datetime;YES;MUL;\N;
+comment;varchar(50);YES;MUL;\N;
+args;longtext;YES;MUL;\N;
+amount;varchar(15);YES;MUL;\N;
+accountid;mediumint(9);YES;MUL;\N;
+
+frac - Field;Type;Null;Key;Default;Extra
+accountid;mediumint(9);YES;MUL;\N;
+actionBy;mediumint(9);YES;MUL;\N;
+TYPE;varchar(50);YES;MUL;\N;
+fractionid;int(2);YES;MUL;\N;
+reason;varchar(70);YES;MUL;\N;
+args;varchar(50);YES;MUL;\N;
+DATE;datetime;YES;MUL;\N;
+
+
+2. 
+item - Table;Non_unique;Key_name;Seq_in_index;Column_name;Collation;Cardinality;Sub_part;Packed;Null;Index_type;Comment;Index_comment
+item;1;fraction;1;fraction;A;9;\N;\N;YES;BTREE;;
+item;1;itemSqlId;1;itemSqlId;A;3201909;\N;\N;YES;BTREE;;
+item;1;accountid;1;accountid;A;31695;\N;\N;YES;BTREE;;
+item;1;itemId;1;itemId;A;9;\N;\N;YES;BTREE;;
+item;1;comment;1;comment;A;9;\N;\N;YES;BTREE;;
+item;1;amount;1;amount;A;9;\N;\N;YES;BTREE;;
+item;1;DATE;1;DATE;A;6824850;\N;\N;YES;BTREE;;
+item;1;member;1;member;A;9;\N;\N;YES;BTREE;;
+item;1;family;1;family;A;9;\N;\N;YES;BTREE;;
+item;1;leader;1;leader;A;9;\N;\N;YES;BTREE;;
+item;1;source;1;source;A;9;\N;\N;YES;BTREE;;
+item;1;transactionId;1;transactionId;A;1499781;\N;\N;YES;BTREE;;
+item;1;args;1;args;A;4708449;255;\N;YES;BTREE;;
+item;1;login;1;login;A;44909;\N;\N;YES;BTREE;;
+item;1;serial;1;serial;A;880956;255;\N;YES;BTREE;;
+
+frac - Table;Non_unique;Key_name;Seq_in_index;Column_name;Collation;Cardinality;Sub_part;Packed;Null;Index_type;Comment;Index_comment
+frac;1;accountid;1;accountid;A;4163;\N;\N;YES;BTREE;;
+frac;1;actionBy;1;actionBy;A;2010;\N;\N;YES;BTREE;;
+frac;1;TYPE;1;TYPE;A;32;\N;\N;YES;BTREE;;
+frac;1;reason;1;reason;A;3850;\N;\N;YES;BTREE;;
+frac;1;DATE;1;DATE;A;63793;\N;\N;YES;BTREE;;
+frac;1;args;1;args;A;5304;\N;\N;YES;BTREE;;
+frac;1;fractionid;1;fractionid;A;14;\N;\N;YES;BTREE;;
+
+
+3. (взял побольше)
+
+item - fraction;itemSqlId;accountid;login;itemId;comment;args;amount;DATE;member;family;leader;source;transactionId;serial
+10;371910483;561164;Claude Winson;334;fullUsed;{"condition":0,"login":"Claude Winson","userId":594733,"level":5,"fraction":10,"rank":4,"family":1597};1;2025-09-08 22:57:17;10;1597;0;\N;0;\N
+10;371910483;561164;Claude Winson;334;take;{"sp":"drop","si":65877,"tp":"inventory","ti":561164,"login":"Claude Winson","userId":594733,"level":5,"fraction":10,"rank":4,"family":1597};1;2025-09-08 22:57:11;10;1597;0;\N;0;\N
+10;371910483;559793;Maksonio Winson;334;dropItem;{"sp":"inventory","si":559793,"tp":"drop","ti":null,"login":"Maksonio Winson","userId":591896,"level":4,"fraction":10,"rank":4,"family":1597};1;2025-09-08 22:57:08;10;1597;0;\N;0;\N
+10;371910483;559793;Maksonio Winson;334;partUsed;{"login":"Maksonio Winson","userId":591896,"level":4,"fraction":10,"rank":4,"family":1597};1;2025-09-08 22:19:58;10;1597;0;\N;0;\N
+10;371910483;559793;Maksonio Winson;334;partUsed;{"login":"Maksonio Winson","userId":591896,"level":4,"fraction":10,"rank":4,"family":1597};1;2025-09-07 23:28:16;10;1597;0;\N;0;\N
+10;371910483;559793;Maksonio Winson;334;partUsed;{"login":"Maksonio Winson","userId":591896,"level":4,"fraction":10,"rank":4,"family":1597};1;2025-09-07 20:00:06;10;1597;0;\N;0;\N
+10;371910483;559793;Maksonio Kioto;334;partUsed;{"login":"Maksonio Kioto","userId":591896,"level":4,"fraction":10,"rank":6};1;2025-09-06 23:04:59;10;0;0;\N;0;\N
+10;371910483;559793;Maksonio Kioto;334;partUsed;{"login":"Maksonio Kioto","userId":591896,"level":3,"fraction":10,"rank":6};1;2025-09-06 03:35:52;10;0;0;\N;0;\N
+10;371910483;559793;Maksonio Kioto;334;seasonPassItem;{"season":7,"id":{"id":3,"free":[{"rewardType":"item","rewardData":{"itemId":734,"count":1},"destroyXP":200,"color":"blue"},{"rewardType":"item","rewardData":{"itemId":334,"count":10},"destroyXP":100,"color":"gray"},{"rewardType":"vehicleDiscount","rewardData":{"amount":5},"destroyXP":200,"color":"gray"},{"rewardType":"clothesDiscount","rewardData":{"amount":5},"destroyXP":200,"color":"gray"}],"premium":[{"rewardType":"item","rewardData":{"itemId":525,"count":1},"destroyXP":400,"color":"purple"}]},"login":"Maksonio Kioto","userId":591896,"level":2,"fraction":10,"rank":2,"family":2002};10;2025-08-24 18:43:08;10;2002;0;\N;0;\N
+
+frac - accountid;actionBy;TYPE;fractionid;reason;args;DATE
+529737;275722;logs.fraction_log.warnRemoved;7;в строю;\N;2025-09-15 23:52:38
+529737;275722;logs.fraction_log.warn;7;6.1 ву;\N;2025-09-15 23:48:31
+529737;247001;logs.fraction_log.awardAmount;7;Премия;{"amount":168512,"massPayment":true};2025-09-15 22:39:38
+529737;529737;logs.fraction_log.spawncars;7;\N;{"fractionId":7};2025-09-15 22:03:39
+529737;529737;logs.fraction_log.spawncars;7;\N;{"fractionId":7};2025-09-15 15:19:36
+529737;247001;logs.fraction_log.awardAmount;7;Премия;{"amount":132464,"massPayment":true};2025-09-08 22:43:27
+529737;275722;logs.fraction_log.warnRemoved;7;в строю;\N;2025-09-02 21:12:23
+529737;247001;logs.fraction_log.warn;7;6.1 в.у.;\N;2025-09-02 21:12:03
+529737;247001;logs.fraction_log.awardAmount;7;Премия;{"amount":147825,"massPayment":true};2025-09-02 19:54:09
+529737;529737;logs.fraction_log.giveOrderOnVehicle;7;123;\N;2025-08-30 00:22:36
+529737;247001;logs.fraction_log.awardAmount;7;Премия;{"amount":151187,"massPayment":true};2025-08-26 20:48:01
+529737;529737;logs.fraction_log.takeWeaponLic;7;\N;\N;2025-08-24 09:00:12
+529737;529737;logs.fraction_log.takeWeaponLic;7;\N;\N;2025-08-24 08:42:16
+529737;529737;logs.fraction_log.spawncars;7;\N;{"fractionId":7};2025-08-19 17:50:12
+529737;247001;logs.fraction_log.awardAmount;7;Премия;{"amount":139637,"massPayment":true};2025-08-19 00:36:29
+529737;529737;logs.fraction_log.spawncars;7;\N;{"fractionId":7};2025-08-17 20:15:54
+529737;529737;logs.fraction_log.spawncars;7;\N;{"fractionId":7};2025-08-17 16:14:29
+529737;529737;logs.fraction_log.giveOrderOnVehicle;7;123;\N;2025-08-16 20:55:33
+529737;529737;logs.fraction_log.spawncars;7;\N;{"fractionId":7};2025-08-12 18:55:53
+529737;275722;logs.fraction_log.rankIncrease;7;ка;{"rank":13};2025-08-12 18:53:13
+529737;540808;logs.fraction_log.inviteTo;7;\N;\N;2025-08-12 17:07:11
+529737;450953;logs.fraction_log.kickedByAdmin;9;Ban: Жалоба cold-0069;\N;2025-08-10 12:51:20
+529737;495918;logs.fraction_log.rankIncrease;9;famq;{"rank":4};2025-08-09 22:45:33
+529737;552850;logs.fraction_log.inviteTo;9;\N;\N;2025-08-09 22:33:34
+529737;275722;logs.fraction_log.uninviteFrom;7;ка;\N;2025-08-09 22:30:55
+529737;428089;logs.fraction_log.rankIncrease;7;явка;{"rank":9};2025-08-08 23:55:21
+529737;275722;logs.fraction_log.rankDecrease;7;6.1 ву;{"rank":8};2025-08-08 23:54:09
+529737;393239;logs.fraction_log.rankIncrease;7;КА;{"rank":9};2025-08-07 21:10:20
+529737;464661;logs.fraction_log.inviteTo;7;\N;\N;2025-08-07 20:47:53
+529737;529737;logs.fraction_log.leftFrom;12;\N;\N;2025-08-07 19:49:19
+529737;263702;logs.fraction_log.inviteTo;12;\N;\N;2025-08-06 22:31:07
+529737;556041;logs.fraction_log.kickedByCriminalRecord;5;\N;{"name":"Government"};2025-08-06 16:15:51
+529737;466275;logs.fraction_log.rankIncrease;5;ka;{"rank":11};2025-08-05 16:53:25
+529737;466275;logs.fraction_log.inviteTo;5;\N;\N;2025-08-05 16:53:06
+529737;533339;logs.fraction_log.uninviteFrom;1;KA by Cory Dzhigurda;\N;2025-08-05 16:52:58
+529737;498577;logs.fraction_log.rankIncrease;1;Востановление;{"rank":5};2025-07-30 16:56:24
+529737;494461;logs.fraction_log.rankIncrease;1;KA;{"rank":3};2025-07-28 21:41:41
+529737;494461;logs.fraction_log.inviteTo;1;\N;\N;2025-07-28 20:09:43
+529737;308402;logs.fraction_log.kickedByAdmin;7;Ban: Жалоба black-0013;\N;2025-07-26 19:59:06
+529737;544420;logs.fraction_log.rankIncrease;7;KA;{"rank":9};2025-07-26 17:09:51
+529737;544420;logs.fraction_log.inviteTo;7;\N;\N;2025-07-26 16:59:58
+529737;467716;logs.fraction_log.kickedByCriminalRecord;7;\N;{"name":"Federal Investigation Bureau"};2025-07-26 16:09:21
+529737;548243;logs.fraction_log.warnRemoved;7;явка;\N;2025-07-22 23:58:33
+529737;548243;logs.fraction_log.warnRemoved;7;явка;\N;2025-07-22 23:58:33
+529737;548243;logs.fraction_log.warnRemoved;7;явка;\N;2025-07-22 23:58:33
+529737;548243;logs.fraction_log.warnRemoved;7;явка;\N;2025-07-22 23:58:33
+529737;548243;logs.fraction_log.warnRemoved;7;явка;\N;2025-07-22 23:58:33
+529737;548243;logs.fraction_log.warn;7;6.1ву;\N;2025-07-22 23:52:06
+529737;548243;logs.fraction_log.warn;7;6.1ву;\N;2025-07-22 23:52:06
+529737;548243;logs.fraction_log.warn;7;6.1ву;\N;2025-07-22 23:52:06
+529737;548243;logs.fraction_log.warn;7;6.1ву;\N;2025-07-22 23:52:06
+529737;548243;logs.fraction_log.warn;7;6.1ву;\N;2025-07-22 23:52:06
+529737;333521;logs.fraction_log.warnRemoved;7;явка;\N;2025-07-20 23:47:47
+529737;247001;logs.fraction_log.warn;7;6.1 устава;\N;2025-07-20 23:47:23
+529737;393239;logs.fraction_log.rankIncrease;7;KA;{"rank":9};2025-07-16 01:18:27
+529737;393239;logs.fraction_log.inviteTo;7;\N;\N;2025-07-16 01:01:16
+529737;328189;logs.fraction_log.uninviteFrom;7;ka;\N;2025-07-15 08:37:33
+
+
+4. вот тебе побольше args 
+fraction;itemSqlId;accountid;login;itemId;comment;args;amount;DATE;member;family;leader;source;transactionId;serial
+4;374210378;495486;Danil Kusakabe;334;partUsed;{"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};1;2025-09-13 04:44:30;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;take;{"sp":"bag","si":303071791,"tp":"inventory","ti":495486,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-13 04:44:24;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;put;{"sp":"inventory","si":495486,"tp":"bag","ti":303071791,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-13 03:49:37;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;take;{"sp":"trunk","si":6146611,"tp":"inventory","ti":495486,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-13 03:39:35;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;put;{"sp":"inventory","si":495486,"tp":"trunk","ti":6146611,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-13 03:36:48;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;take;{"sp":"bag","si":303071791,"tp":"inventory","ti":495486,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-13 03:36:37;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;put;{"sp":"inventory","si":495486,"tp":"bag","ti":303071791,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-13 03:31:34;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;take;{"sp":"drop","si":66294,"tp":"inventory","ti":495486,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-12 05:41:11;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;dropItem;{"sp":"inventory","si":495486,"tp":"drop","ti":null,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-12 05:41:07;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;take;{"sp":"ftrunk","si":6246242,"tp":"inventory","ti":495486,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-12 05:21:18;4;1351;0;\N;0;\N
+4;374210378;495486;Danil Kusakabe;334;itemSplitFrom;{"id":373580428,"type":1,"login":"Danil Kusakabe","userId":489763,"level":6,"fraction":4,"rank":3,"family":1351};2;2025-09-12 05:21:18;4;1351;0;\N;0;\N
+
+
+
+5. TABLE_NAME;TABLE_ROWS;DATA_LENGTH;INDEX_LENGTH
+frac;82667;8929280;23199744
+item;27584857;4734337024;15687401472
+
+
+6. Невозможно организовать, так как это многосоставной запрос с врем. таблицами, созданием индексов и т.д., explain его не объясняет.
+
+
+
