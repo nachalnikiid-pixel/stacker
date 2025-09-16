@@ -125,11 +125,45 @@ class PunishmentStackerConfig:
         return self.themes.get(self.theme, self.themes["dark_red"])
 
 
+class FormulaEvaluator:
+    """Безопасный оценщик пользовательских формул"""
+    
+    def __init__(self):
+        # Разрешенные операторы и функции
+        self.allowed_ops = {
+            '+', '-', '*', '/', '//', '%', '**', 
+            '<', '>', '<=', '>=', '==', '!=',
+            'and', 'or', 'not', 'min', 'max', 'round', 'int', 'float'
+        }
+    
+    def safe_eval(self, formula: str, variables: dict) -> float:
+        """Безопасная оценка формулы с заданными переменными"""
+        try:
+            # Простая проверка безопасности - только разрешенные символы и операции
+            if any(char in formula for char in ['import', 'exec', 'eval', '__']):
+                raise ValueError("Небезопасная формула")
+            
+            # Создаем локальное окружение с переменными и безопасными функциями
+            local_vars = variables.copy()
+            local_vars.update({
+                'min': min, 'max': max, 'round': round, 'int': int, 'float': float
+            })
+            
+            # Выполняем формулу
+            result = eval(formula, {"__builtins__": {}}, local_vars)
+            return float(result) if result is not None else 0.0
+            
+        except Exception as e:
+            print(f"Ошибка в формуле '{formula}': {e}")
+            return 0.0
+
+
 class PunishmentProcessor:
-    """Класс для обработки наказаний"""
+    """Класс для обработки наказаний с гибкой логикой"""
     
     def __init__(self, config: PunishmentStackerConfig):
         self.config = config
+        self.formula_evaluator = FormulaEvaluator()
     
     def parse_command(self, command_string: str) -> Dict[str, Any] | None:
         """Разбирает строку команды и возвращает словарь с информацией о наказании"""
@@ -191,8 +225,217 @@ class PunishmentProcessor:
         date_search = re.search(r'\((.*?)\)', item)
         return date_search.group(1) if date_search else ""
 
+    def calculate_escalation(self, ajail_minutes: int, ban_days: int, hardban_days: int, 
+                           punishment_reasons: Dict[str, int]) -> tuple[str, int]:
+        """Рассчитывает эскалацию наказания с учетом настроек"""
+        
+        # Если автоэскалация отключена, возвращаем исходное наказание
+        if not self.config.enable_auto_escalation:
+            if hardban_days > 0:
+                return "/hardban", hardban_days
+            elif ban_days > 0:
+                return "/ban", ban_days  
+            elif ajail_minutes > 0:
+                return "/ajail", ajail_minutes
+            else:
+                return None, 0
+        
+        total_minutes = ajail_minutes
+        reason_count = len(punishment_reasons)
+        different_reasons = reason_count > 1
+        
+        # Применяем бонус для множественных нарушений
+        if self.config.enable_multi_reason_bonus and different_reasons:
+            if self.config.escalation_formula == "exponential":
+                total_minutes = round(total_minutes * (1.2 ** (reason_count - 1)))
+            elif self.config.escalation_formula == "custom" and "multi_reason_bonus" in self.config.custom_formulas:
+                vars_dict = {
+                    "total_minutes": total_minutes,
+                    "reason_count": reason_count,
+                    "base_multiplier": 1.2
+                }
+                total_minutes = round(self.formula_evaluator.safe_eval(
+                    self.config.custom_formulas["multi_reason_bonus"], vars_dict
+                ))
+        
+        # Переменные для формул
+        formula_vars = {
+            "ajail_minutes": total_minutes,
+            "ban_days": ban_days,
+            "hardban_days": hardban_days,
+            "total_minutes": total_minutes,
+            "reason_count": reason_count,
+            "different_reasons": different_reasons,
+            "max_ajail_duration": self.config.max_ajail_duration,
+            "max_warn_duration": self.config.max_warn_duration,
+            "max_multi_warn_duration": self.config.max_multi_warn_duration,
+            "ban_duration_divider": self.config.ban_duration_divider,
+            "warn_ajail_equivalent": self.config.warn_ajail_equivalent
+        }
+        
+        # Определение типа наказания
+        if hardban_days > 0:
+            final_command_type = "/hardban"
+            if self.config.escalation_formula == "custom" and "hardban_conversion" in self.config.custom_formulas:
+                final_duration = round(self.formula_evaluator.safe_eval(
+                    self.config.custom_formulas["hardban_conversion"], formula_vars
+                ))
+            else:
+                final_duration = round(hardban_days + (total_minutes / self.config.ban_duration_divider) + ban_days)
+                
+        elif ban_days > 0:
+            final_command_type = "/ban"
+            if self.config.escalation_formula == "custom" and "ban_conversion" in self.config.custom_formulas:
+                final_duration = round(self.formula_evaluator.safe_eval(
+                    self.config.custom_formulas["ban_conversion"], formula_vars
+                ))
+            else:
+                final_duration = round(ban_days + (total_minutes / self.config.ban_duration_divider))
+                
+        elif (reason_count == 1 and "1.2.2 ПГО" in punishment_reasons and 
+              self.config.max_ajail_duration < total_minutes <= self.config.max_warn_duration):
+            return "/warn", None
+            
+        elif (different_reasons and 
+              self.config.max_warn_duration < total_minutes <= self.config.max_multi_warn_duration):
+            return "/warn", None
+            
+        elif (total_minutes > self.config.max_multi_warn_duration or 
+              (reason_count == 1 and total_minutes > self.config.max_ajail_duration)):
+            final_command_type = "/ban"
+            if self.config.escalation_formula == "exponential":
+                final_duration = round((total_minutes / self.config.ban_duration_divider) * 1.1)
+            elif self.config.escalation_formula == "custom" and "ajail_to_ban" in self.config.custom_formulas:
+                final_duration = round(self.formula_evaluator.safe_eval(
+                    self.config.custom_formulas["ajail_to_ban"], formula_vars
+                ))
+            else:
+                final_duration = round(total_minutes / self.config.ban_duration_divider)
+                
+        elif total_minutes > 0:
+            return "/ajail", total_minutes
+        else:
+            return None, 0
+        
+        # Применяем ПГО лимиты если включены
+        if self.config.enable_pgo_limits and len(punishment_reasons) == 1:
+            reason = list(punishment_reasons.keys())[0]
+            if reason in self.config.pgo_limits:
+                if final_command_type == "/ban":
+                    final_duration = min(final_duration, self.config.pgo_limits[reason]["ban"])
+                elif final_command_type == "/hardban":
+                    final_duration = min(final_duration, self.config.pgo_limits[reason]["hardban"])
+        
+        return final_command_type, final_duration
+    
+    def group_reasons(self, moderator_reasons: Dict[str, List[str]]) -> str:
+        """Группирует причины согласно выбранному режиму"""
+        
+        if self.config.reason_grouping_mode == "by_date":
+            # Группировка по датам
+            all_items = []
+            for moderator, reasons in moderator_reasons.items():
+                for item in reasons:
+                    date = self.extract_date(item)
+                    reason = item.split('(')[0].strip()
+                    all_items.append((date, reason, moderator))
+            
+            all_items.sort(key=lambda x: x[0])  # Сортировка по дате
+            
+            date_groups: Dict[str, List[tuple]] = {}
+            for date, reason, moderator in all_items:
+                if date not in date_groups:
+                    date_groups[date] = []
+                date_groups[date].append((reason, moderator))
+            
+            reason_parts = []
+            for date in sorted(date_groups.keys()):
+                items = date_groups[date]
+                if self.config.duplicate_reason_handling == "merge":
+                    # Объединяем одинаковые причины
+                    unique_reasons = {}
+                    for reason, moderator in items:
+                        if reason not in unique_reasons:
+                            unique_reasons[reason] = []
+                        unique_reasons[reason].append(moderator)
+                    
+                    for reason, moderators in unique_reasons.items():
+                        mod_str = ", ".join(set(moderators))  # Уникальные модераторы
+                        reason_parts.append(f"{reason} ({date}) by {mod_str}")
+                else:
+                    # Оставляем как есть
+                    for reason, moderator in items:
+                        reason_parts.append(f"{reason} ({date}) by {moderator}")
+            
+            return " ".join(reason_parts)
+        
+        elif self.config.reason_grouping_mode == "combined":
+            # Комбинированная группировка
+            all_reasons = []
+            all_dates = set()
+            all_moderators = set()
+            
+            for moderator, reasons in moderator_reasons.items():
+                all_moderators.add(moderator)
+                for item in reasons:
+                    date = self.extract_date(item)
+                    reason = item.split('(')[0].strip()
+                    all_reasons.append(reason)
+                    all_dates.add(date)
+            
+            if self.config.duplicate_reason_handling == "merge":
+                unique_reasons = list(set(all_reasons))
+            else:
+                unique_reasons = all_reasons
+            
+            reason_str = " + ".join(unique_reasons)
+            date_str = " ".join(f"({date})" for date in sorted(all_dates))
+            mod_str = ", ".join(sorted(all_moderators))
+            
+            return f"{reason_str} {date_str} by {mod_str}"
+        
+        else:
+            # По умолчанию: группировка по модераторам (существующая логика)
+            reason_string = ""
+            for moderator, reasons in moderator_reasons.items():
+                reasons.sort(key=self.extract_date)
+                collected_reasons: Dict[str, List[str]] = {}
+                
+                for item in reasons:
+                    date = self.extract_date(item)
+                    reason = item.split('(')[0].strip()
+                    
+                    if self.config.duplicate_reason_handling == "keep_separate":
+                        # Каждая причина отдельно
+                        key = f"{reason}_{date}"
+                    else:
+                        # Группируем одинаковые причины
+                        key = reason
+                    
+                    if key not in collected_reasons:
+                        collected_reasons[key] = []
+                    collected_reasons[key].append(date)
+
+                moderator_str = ""
+                for reason_key, dates in collected_reasons.items():
+                    if "_" in reason_key and self.config.duplicate_reason_handling == "keep_separate":
+                        reason = reason_key.split("_")[0]
+                        dates_str = f"({dates[0]})"
+                    else:
+                        reason = reason_key
+                        if self.config.duplicate_reason_handling == "merge":
+                            dates_str = " ".join(f"({date})" for date in sorted(set(dates)))
+                        else:
+                            dates_str = " ".join(f"({date})" for date in sorted(dates))
+                    
+                    moderator_str += f"{reason} {dates_str} "
+
+                reason_string += f"{moderator_str}by {moderator} "
+
+            return reason_string.strip()
+    
     def process_player_commands(self, command_strings: List[str]) -> str | None:
-        """Обрабатывает список команд для одного игрока и возвращает итоговое наказание"""
+        """Обрабатывает список команд для одного игрока с гибкой логикой"""
         parsed_commands = [self.parse_command(cmd) for cmd in command_strings]
         parsed_commands = [cmd for cmd in parsed_commands if cmd]
 
@@ -227,81 +470,21 @@ class PunishmentProcessor:
                     moderator_reasons[moderator] = []
                 moderator_reasons[moderator].append(f"{reason} ({cmd['date']})")
 
-        different_reasons = len(punishment_reasons) > 1
-
-        # Определение финального типа команды и длительности
-        if hardban_days > 0:
-            final_command_type = "/hardban"
-            final_duration = round(
-                hardban_days + 
-                (total_ajail_minutes / self.config.ban_duration_divider) + 
-                ban_days
-            )
-            if len(punishment_reasons) == 1:
-                reason = list(punishment_reasons.keys())[0]
-                if reason in self.config.pgo_limits:
-                    final_duration = min(final_duration, self.config.pgo_limits[reason]["hardban"])
-                    
-        elif ban_days > 0:
-            final_command_type = "/ban"
-            final_duration = round(ban_days + (total_ajail_minutes / self.config.ban_duration_divider))
-            if len(punishment_reasons) == 1:
-                reason = list(punishment_reasons.keys())[0]
-                if reason in self.config.pgo_limits:
-                    final_duration = min(final_duration, self.config.pgo_limits[reason]["ban"])
-                    
-        elif (len(punishment_reasons) == 1 and "1.2.2 ПГО" in punishment_reasons and 
-              self.config.max_ajail_duration < total_ajail_minutes <= self.config.max_warn_duration):
-            final_command_type = "/warn"
-            final_duration = None
-            
-        elif (different_reasons and 
-              self.config.max_warn_duration < total_ajail_minutes <= self.config.max_multi_warn_duration):
-            final_command_type = "/warn"
-            final_duration = None
-            
-        elif (total_ajail_minutes > self.config.max_multi_warn_duration or 
-              (len(punishment_reasons) == 1 and total_ajail_minutes > self.config.max_ajail_duration)):
-            final_command_type = "/ban"
-            final_duration = round(total_ajail_minutes / self.config.ban_duration_divider)
-            
-        elif total_ajail_minutes > 0:
-            final_command_type = "/ajail"
-            final_duration = total_ajail_minutes
-        else:
+        # Вычисляем финальное наказание с учетом настроек
+        final_command_type, final_duration = self.calculate_escalation(
+            total_ajail_minutes, ban_days, hardban_days, punishment_reasons
+        )
+        
+        if not final_command_type:
             return None
 
-        # Формирование строки причин
-        reason_string = ""
-        for moderator, reasons in moderator_reasons.items():
-            reasons.sort(key=self.extract_date)
-            collected_reasons: Dict[str, List[str]] = {}
-            
-            for item in reasons:
-                date = self.extract_date(item)
-                reason = item.split('(')[0].strip()
-                
-                if reason not in collected_reasons:
-                    collected_reasons[reason] = []
-                collected_reasons[reason].append(date)
+        # Формируем строку причин с учетом режима группировки
+        reason_string = self.group_reasons(moderator_reasons)
 
-            moderator_str = ""
-            for reason, dates in collected_reasons.items():
-                dates.sort()
-                dates_str = " ".join(f"({date})" for date in dates)
-                moderator_str += f"{reason} {dates_str} "
-
-            reason_string += f"{moderator_str}by {moderator} "
-
-        reason_string = reason_string.strip()
-
-        if final_command_type:
-            if final_command_type == "/warn":
-                return f"/warn {static_id} {reason_string}"
-            else:
-                return f"{final_command_type} {static_id} {final_duration} {reason_string}"
-        
-        return None
+        if final_command_type == "/warn":
+            return f"/warn {static_id} {reason_string}"
+        else:
+            return f"{final_command_type} {static_id} {final_duration} {reason_string}"
 
     def process_all_commands(self, all_commands: List[str]) -> List[str]:
         """Обрабатывает все команды, группируя их по static_id"""
