@@ -69,14 +69,14 @@ export class SqlAnalyzer {
   private static generateIndexRecommendations(query: string) {
     const recommendations = [];
 
-    // Recommend composite index for ARGS operations
+    // Recommend composite index based on generated columns for MySQL 5.7+ compatibility
     if (query.includes("ARGS") && query.includes("itemId")) {
       recommendations.push({
         tableName: "item",
-        columns: ["ARGS", "itemId", "login"],
+        columns: ["sp_type", "si_value", "itemId", "login"],
         type: "Составной индекс" as const,
-        ddl: "CREATE INDEX idx_item_args_itemid_login ON item (ARGS(255), itemId, login);",
-        impact: "Ускорит выполнение подзапроса на ~80%",
+        ddl: "-- После создания GENERATED столбцов:\nCREATE INDEX idx_item_sp_si_itemid_login ON item (sp_type, si_value, itemId, login);",
+        impact: "Ускорит выполнение запросов с JSON фильтрацией на ~80% (требует GENERATED столбцы)",
         priority: "Высокий приоритет" as const,
       });
     }
