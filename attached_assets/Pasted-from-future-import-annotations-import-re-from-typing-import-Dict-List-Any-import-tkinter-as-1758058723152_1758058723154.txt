@@ -1,0 +1,295 @@
+from __future__ import annotations
+import re
+from typing import Dict, List, Any
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import os
+
+# --- Константы ---
+MAX_AJAIL_DURATION = 90
+MAX_WARN_DURATION = 120
+MAX_MULTI_WARN_DURATION = 140
+BAN_DURATION_DIVIDER = 30  # For ajail to ban conversion
+WARN_AJAIL_EQUIVALENT = 100  # Warn as minutes in ajail
+INPUT_FILE = "commands.txt"  # Имя файла с командами
+OUTPUT_FILE = "results.txt"  # Имя файла для результатов
+
+# --- Функции вашего скрипта (без изменений) ---
+def parse_command(command_string: str) -> Dict[str, Any] | None:
+    """
+    Разбирает строку команды и возвращает словарь с информацией о наказании.
+    """
+    parts = command_string.split()
+
+    if len(parts) < 5:
+        print(f"Предупреждение: Некорректная команда: {command_string}")
+        return None
+
+    command_type = parts[0]
+    static_id = parts[1]
+
+    if command_type in ("/ajail", "/ban", "/hardban"):
+        try:
+            duration = int(parts[2])
+        except ValueError:
+            print(f"Предупреждение: Некорректная длительность в команде: {command_string}")
+            return None
+        reason_start_index = 3
+    elif command_type == "/warn":
+        duration = None
+        reason_start_index = 2
+    else:
+        print(f"Предупреждение: Неизвестный тип команды: {command_string}")
+        return None
+
+    reason_parts = parts[reason_start_index:]
+
+    try:
+        by_index = reason_parts.index("by")
+    except ValueError:
+        print(f"Предупреждение: Отсутствует информация о модераторе в команде: {command_string}")
+        return None
+
+    reason = " ".join(reason_parts[:by_index])
+    moderator_info = " ".join(reason_parts[by_index:])
+
+    if not reason:
+        print(f"Предупреждение: Отсутствует причина наказания в команде: {command_string}")
+        return None
+
+    date_match = re.search(r"\((.*?)\)", reason)
+    date = date_match.group(1) if date_match else None
+    reason = re.sub(r"\((.*?)\)", "", reason).strip()
+
+    # Удаляем лишний "by" из moderator_info
+    moderator_info = moderator_info.replace("by ", "", 1)
+
+    return {
+        "command_type": command_type,
+        "static_id": static_id,
+        "duration": duration,
+        "reason": reason,
+        "date": date,
+        "moderator_info": moderator_info
+    }
+
+def extract_date(item: str) -> str:
+    """
+    Извлекает дату из строки, обрабатывая None.
+    """
+    date_search = re.search(r'\((.*?)\)', item)
+    if date_search:
+        return date_search.group(1)
+    return ""  # Или другое значение по умолчанию
+
+def process_player_commands(command_strings: List[str]) -> str | None:
+    """
+    Обрабатывает список команд для одного игрока и возвращает итоговое наказание.
+    """
+    parsed_commands = [parse_command(cmd) for cmd in command_strings]
+    parsed_commands = [cmd for cmd in parsed_commands if cmd]
+
+    if not parsed_commands:
+        return None
+
+    static_id = parsed_commands[0]["static_id"]
+    total_ajail_minutes = 0
+    ban_days = 0
+    hardban_days = 0
+    punishment_reasons: Dict[str, int] = {}
+    moderator_reasons: Dict[str, List[str]] = {}  # {moderator: [reason (date)]}
+
+    # First, process all commands
+    for cmd in parsed_commands:
+        if cmd["command_type"] == "/ajail":
+            total_ajail_minutes += cmd["duration"]
+        elif cmd["command_type"] == "/ban":
+            ban_days += cmd["duration"]
+        elif cmd["command_type"] == "/warn":
+            total_ajail_minutes += WARN_AJAIL_EQUIVALENT
+        elif cmd["command_type"] == "/hardban":
+            hardban_days += cmd["duration"]
+
+        moderator = cmd['moderator_info']
+
+        reasons = cmd["reason"].split(" + ")
+        for reason in reasons:
+            if reason in punishment_reasons:
+                punishment_reasons[reason] += 1
+            else:
+                punishment_reasons[reason] = 1
+
+            if moderator not in moderator_reasons:
+                moderator_reasons[moderator] = []
+
+            moderator_reasons[moderator].append(f"{reason} ({cmd['date']})")
+
+    different_reasons = len(punishment_reasons) > 1
+
+    # Determine final command type and duration
+    if hardban_days > 0:
+        final_command_type = "/hardban"
+        final_duration = round(
+            hardban_days
+            + (total_ajail_minutes / BAN_DURATION_DIVIDER)
+            + (ban_days)
+        )
+        if len(punishment_reasons) == 1:  # Apply hardban limits
+            reason = list(punishment_reasons.keys())[0]  # Get the single reason
+            if reason == "1.2.1 ПГО" or reason == "1.4 ПГО":
+                final_duration = min(final_duration, 30)
+    elif ban_days > 0:
+        final_command_type = "/ban"
+        # Convert ajail minutes to ban days and add to existing ban days
+        final_duration = round(ban_days + (total_ajail_minutes / BAN_DURATION_DIVIDER))
+        if len(punishment_reasons) == 1:  # Apply ban limits
+            reason = list(punishment_reasons.keys())[0]  # Get the single reason
+            if reason == "1.2.1 ПГО" or reason == "1.4 ПГО":
+                final_duration = min(final_duration, 30)
+            elif reason == "1.2.2 ПГО" or reason == "1.4 ПГО":
+                final_duration = min(final_duration, 15)
+    elif len(punishment_reasons) == 1 and "1.2.2 ПГО" in punishment_reasons and MAX_AJAIL_DURATION < total_ajail_minutes <= MAX_WARN_DURATION:
+        final_command_type = "/warn"
+        final_duration = None
+    elif different_reasons and MAX_WARN_DURATION < total_ajail_minutes <= MAX_MULTI_WARN_DURATION:
+        final_command_type = "/warn"
+        final_duration = None
+    elif total_ajail_minutes > MAX_MULTI_WARN_DURATION or (len(punishment_reasons) == 1 and total_ajail_minutes > MAX_AJAIL_DURATION):
+        final_command_type = "/ban"
+        final_duration = round(total_ajail_minutes / BAN_DURATION_DIVIDER)  # Convert ajail minutes to ban days
+    elif total_ajail_minutes > 0:
+        final_command_type = "/ajail"
+        final_duration = total_ajail_minutes
+    else:
+        final_command_type = None  # No punishment needed
+        final_duration = 0
+
+    reason_string = ""
+
+    for moderator, reasons in moderator_reasons.items():
+
+        # Sort individual reasons by date
+        reasons.sort(key=extract_date)
+
+        # Collect reasons + dates for given moderator
+        collected_reasons: Dict[str, List[str]] = {}
+        for item in reasons:
+            date = extract_date(item)
+            reason = item.split('(')[0].strip()
+
+            if reason not in collected_reasons:
+                collected_reasons[reason] = []
+            collected_reasons[reason].append(date)
+
+        moderator_str = ""
+        for reason, dates in collected_reasons.items():
+            dates.sort()  # Ensure dates are sorted
+            dates_str = " ".join(f"({date})" for date in dates)
+            moderator_str += f"{reason} {dates_str} "
+
+        reason_string += f"{moderator_str}by {moderator} "
+
+    reason_string = reason_string.strip()
+
+    if final_command_type:
+        if final_command_type == "/warn":
+            final_command = f"/warn {static_id} {reason_string}"
+        else:
+            final_command = f"{final_command_type} {static_id} {final_duration} {reason_string}"
+    else:
+        return None
+
+    return final_command
+
+def process_all_commands(all_commands: List[str]) -> List[str]:
+    """
+    Обрабатывает все команды, группируя их по static_id.
+    """
+    grouped_commands: Dict[str, List[str]] = {}
+    for command in all_commands:
+        static_id = command.split()[1]
+        if static_id not in grouped_commands:
+            grouped_commands[static_id] = []
+        grouped_commands[static_id].append(command)
+
+    results: List[str] = []
+    for static_id, commands in grouped_commands.items():
+        if len(commands) > 1:
+            result = process_player_commands(commands)
+            if result:
+                results.append(result)
+        else:
+            results.append(commands[0])
+    return results
+
+def read_commands_from_file(filename: str) -> List[str]:
+    """
+    Читает команды из файла, каждая команда на новой строке.
+    """
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            commands = [line.strip() for line in f]
+        return commands
+    except FileNotFoundError:
+        print(f"Ошибка: Файл '{filename}' не найден.")
+        return []
+
+def write_results_to_file(filename: str, results: List[str]) -> None:
+    """
+    Записывает результаты в файл.
+    """
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            for result in results:
+                f.write(result + "\n")
+        print(f"Результаты записаны в файл '{filename}'.")
+    except Exception as e:
+        print(f"Ошибка при записи в файл: {e}")
+
+# --- Функции для GUI ---
+def browse_file():
+    """Открывает диалоговое окно для выбора файла."""
+    filename = filedialog.askopenfilename(
+        initialdir=".",  # Открываем в текущем каталоге
+        title="Выберите файл с командами",
+        filetypes=(("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")),
+    )
+    if filename:
+        input_file_entry.delete(0, tk.END)
+        input_file_entry.insert(0, filename)
+
+def process_commands():
+    """Обрабатывает команды и показывает результат."""
+    input_file = input_file_entry.get()
+    if not os.path.exists(input_file):
+        messagebox.showerror("Ошибка", "Файл с командами не найден.")
+        return
+
+    try:
+        all_commands = read_commands_from_file(input_file)
+        results = process_all_commands(all_commands)
+        write_results_to_file(OUTPUT_FILE, results)
+        messagebox.showinfo("Успех", f"Команды обработаны. Результаты сохранены в файл '{OUTPUT_FILE}'.")
+    except Exception as e:
+        messagebox.showerror("Ошибка", f"Произошла ошибка:\n{e}")
+
+# --- Создание главного окна ---
+root = tk.Tk()
+root.title("Logs Stacker by peep")
+root.geometry("400x200")
+
+# --- Элементы GUI ---
+input_file_label = tk.Label(root, text="Файл с наказаниями:")
+input_file_label.pack(pady=5)
+
+input_file_entry = tk.Entry(root, width=40)
+input_file_entry.pack(pady=5)
+
+browse_button = tk.Button(root, text="Обзор", command=browse_file)
+browse_button.pack(pady=5)
+
+process_button = tk.Button(root, text="Стакнуть", command=process_commands)
+process_button.pack(pady=10)
+
+# --- Запуск главного цикла ---
+root.mainloop()
